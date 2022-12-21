@@ -47,15 +47,17 @@ func main() {
 
   tweets := make(chan Tweet)
 	// Producer
-	 go producer(stream, tweets)
+	go producer(stream, tweets)
 
 	// Consumer
   var wg sync.WaitGroup
-  wg.Add(1)
-	go func(t chan Tweet) {
-     defer wg.Done()
-     consumer(t)
-  }(tweets)
+  for i:= 0; i < 2; i++ {
+     wg.Add(1)
+	   go func(t chan Tweet) {
+        defer wg.Done()
+        consumer(t)
+     }(tweets)
+  }
 
   wg.Wait()
 	fmt.Printf("Process took %s\n", time.Since(start))
