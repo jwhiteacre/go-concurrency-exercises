@@ -9,9 +9,9 @@
 package main
 
 import (
-  "sync"
+	"sync"
 
-  "container/list"
+	"container/list"
 )
 
 // CacheSize determines how big the cache can grow
@@ -32,7 +32,7 @@ type page struct {
 type KeyStoreCache struct {
 	cache map[string]*list.Element
 	pages list.List
-  mutex sync.Mutex
+	mutex sync.Mutex
 	load  func(string) string
 }
 
@@ -46,9 +46,9 @@ func New(load KeyStoreCacheLoader) *KeyStoreCache {
 
 // Get gets the key from cache, loads it from the source if needed
 func (k *KeyStoreCache) Get(key string) string {
-  k.mutex.Lock()
-	if e, ok := k.cache[key]; ok {
-    defer k.mutex.Unlock()
+	k.mutex.Lock()
+  if e, ok := k.cache[key]; ok {
+		defer k.mutex.Unlock()
 		k.pages.MoveToFront(e)
 		return e.Value.(page).Value
 	}
@@ -61,21 +61,21 @@ func (k *KeyStoreCache) Get(key string) string {
 		// remove from list
 		k.pages.Remove(end)
 	}
-  k.mutex.Unlock()
+	k.mutex.Unlock()
 
 	// Miss - load from database and save it in cache
 	p := page{key, k.load(key)}
 
-  k.mutex.Lock()
+	k.mutex.Lock()
 	k.pages.PushFront(p)
 
-  // Could have been added by another thread while waiting on the mutext
-  // if so remove the old one from the list and add the new one to the map
-  if e, ok := k.cache[key]; ok {
+	// Could have been added by another thread while waiting on the mutext
+	// if so remove the old one from the list and add the new one to the map
+	if e, ok := k.cache[key]; ok {
 		k.pages.Remove(e)
-  }
+	}
 	k.cache[key] = k.pages.Front()
-  k.mutex.Unlock()
+	k.mutex.Unlock()
 
 	return p.Value
 }
