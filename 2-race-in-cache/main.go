@@ -69,11 +69,12 @@ func (k *KeyStoreCache) Get(key string) string {
 	k.mutex.Lock()
 	k.pages.PushFront(p)
 
-	// Could have been added by another thread while waiting on the mutext
+	// Could have been added by another thread while waiting on the mutex
 	// if so remove the old one from the list and add the new one to the map
 	if e, ok := k.cache[key]; ok {
 		k.pages.Remove(e)
 	}
+
 	k.cache[key] = k.pages.Front()
 	k.mutex.Unlock()
 
