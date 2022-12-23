@@ -31,6 +31,7 @@ func handleSignal(p *MockProcess) {
 	for s := range c {
 		fmt.Printf("\n%s\n", s)
 		if called > 0 {
+			fmt.Printf("Exiting, stopping graceful shutdown\n")
 			os.Exit(1)
 		}
 		go p.Stop()
