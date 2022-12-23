@@ -13,9 +13,38 @@
 
 package main
 
+import (
+	"fmt"
+	"os"
+	"os/signal"
+)
+
+func handleSignal(p *MockProcess) {
+	var called int64
+
+	// Set up channel on which to send signal notifications.
+	c := make(chan os.Signal, 1)
+
+	// Notify on interrupt signals
+	signal.Notify(c, os.Interrupt)
+
+	for s := range c {
+		fmt.Printf("\n%s\n", s)
+		if called > 0 {
+			os.Exit(1)
+		}
+		go p.Stop()
+		called++
+	}
+}
+
 func main() {
+
 	// Create a process
 	proc := MockProcess{}
+
+	// set up signal handler
+	go handleSignal(&proc)
 
 	// Run the process (blocking)
 	proc.Run()
