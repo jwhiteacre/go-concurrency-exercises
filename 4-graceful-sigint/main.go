@@ -19,7 +19,7 @@ import (
 	"os/signal"
 )
 
-func handleSignal(p *MockProcess) {
+func (p *MockProcess) handleSignals() {
 	var called int64
 
 	// Set up channel on which to send signal notifications.
@@ -45,7 +45,7 @@ func main() {
 	proc := MockProcess{}
 
 	// set up signal handler
-	go handleSignal(&proc)
+	go proc.handleSignals()
 
 	// Run the process (blocking)
 	proc.Run()
