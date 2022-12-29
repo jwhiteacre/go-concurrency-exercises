@@ -20,17 +20,23 @@ package main
 import (
 	"errors"
 	"log"
+	"sync"
+	"time"
 )
+
+const TTLSeconds = 5
 
 // SessionManager keeps track of all sessions from creation, updating
 // to destroying.
 type SessionManager struct {
-	sessions map[string]Session
+	sessions     map[string]Session
+	sessionMutex sync.Mutex
 }
 
 // Session stores the session's data
 type Session struct {
-	Data map[string]interface{}
+	Data   map[string]interface{}
+	expire time.Time
 }
 
 // NewSessionManager creates a new sessionManager
@@ -39,7 +45,33 @@ func NewSessionManager() *SessionManager {
 		sessions: make(map[string]Session),
 	}
 
+	// start cleanup thread
+	go m.sessionCleaner()
+
 	return m
+}
+
+// Does the math
+func setExpiration(ttl time.Duration) time.Time {
+	return time.Now().Add(time.Second * ttl)
+}
+
+func (m *SessionManager) sessionCleaner() {
+	// Ticker for every 3 seconds
+	ticker := time.Tick(3 * time.Second)
+
+	for {
+
+		<-ticker
+		m.sessionMutex.Lock()
+		for i, s := range m.sessions {
+			if time.Now().After(s.expire) {
+				delete(m.sessions, i)
+			}
+		}
+		m.sessionMutex.Unlock()
+	}
+
 }
 
 // CreateSession creates a new session and returns the sessionID
@@ -49,9 +81,12 @@ func (m *SessionManager) CreateSession() (string, error) {
 		return "", err
 	}
 
+	m.sessionMutex.Lock()
 	m.sessions[sessionID] = Session{
-		Data: make(map[string]interface{}),
+		Data:   make(map[string]interface{}),
+		expire: setExpiration(TTLSeconds),
 	}
+	m.sessionMutex.Unlock()
 
 	return sessionID, nil
 }
@@ -63,6 +98,8 @@ var ErrSessionNotFound = errors.New("SessionID does not exists")
 // GetSessionData returns data related to session if sessionID is
 // found, errors otherwise
 func (m *SessionManager) GetSessionData(sessionID string) (map[string]interface{}, error) {
+	m.sessionMutex.Lock()
+	defer m.sessionMutex.Unlock()
 	session, ok := m.sessions[sessionID]
 	if !ok {
 		return nil, ErrSessionNotFound
@@ -72,6 +109,8 @@ func (m *SessionManager) GetSessionData(sessionID string) (map[string]interface{
 
 // UpdateSessionData overwrites the old session data with the new one
 func (m *SessionManager) UpdateSessionData(sessionID string, data map[string]interface{}) error {
+	m.sessionMutex.Lock()
+	defer m.sessionMutex.Unlock()
 	_, ok := m.sessions[sessionID]
 	if !ok {
 		return ErrSessionNotFound
@@ -79,7 +118,8 @@ func (m *SessionManager) UpdateSessionData(sessionID string, data map[string]int
 
 	// Hint: you should renew expiry of the session here
 	m.sessions[sessionID] = Session{
-		Data: data,
+		Data:   data,
+		expire: setExpiration(TTLSeconds),
 	}
 
 	return nil
